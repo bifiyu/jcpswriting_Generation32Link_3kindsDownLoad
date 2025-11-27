@@ -497,7 +497,6 @@
             if (btn) btn.disabled = generatedStudentLinks.length === 0;
         });
 
-        // Excel(.xlsx) 匯出：使用 SheetJS 產生真正的 Excel 檔，連結可點擊
         document.getElementById('export-links-xlsx').addEventListener('click', () => {
             if (!generatedStudentLinks.length) return;
 
@@ -505,13 +504,17 @@
             const wsData = [['座號', 'API Key 組別', '連結']];
 
             generatedStudentLinks.forEach(item => {
+                // 把相對網址變成「完整網址」，例如：
+                // https://你的帳號.github.io/你的repo/student_tool.html?....
+                const absoluteUrl = new URL(item.url, window.location.href).href;
+
                 wsData.push([
                     item.seatId,
                     `第${item.apiKeyChinese}組`,
-                    { 
+                    {
                         t: 's',
-                        v: item.url,
-                        l: { Target: item.url }  // hyperlink
+                        v: '開啟學生引導單',  // Excel 儲存格顯示的文字
+                        l: { Target: absoluteUrl } // 真正的超連結目標
                     }
                 ]);
             });
