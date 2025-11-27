@@ -93,14 +93,16 @@
             flex: 0 0 49%;
         }
 
-        /* 匯出區塊：置中 */
+        /* 產生連結 & 名單區塊置中 */
         #student-links-section {
             text-align: center;
         }
         #student-links-list {
-            display: inline-block;   /* 讓列表區塊本身置中 */
-            text-align: left;        /* 但裡面的文字維持左對齊，較好閱讀 */
-            margin-top: 10px;
+            list-style-type: none;
+            padding-left: 0;
+            margin: 10px auto 0 auto;
+            text-align: left;   /* 內容本身左對齊，較好閱讀 */
+            display: inline-block;
         }
         #export-buttons {
             margin-top: 16px;
@@ -211,9 +213,6 @@
                 
                 <div class="option-group group-sentence-patterns">
                     <h3>建議句型</h3>
-                    <!-- 這裡沿用你原本的複句結構，已貼在上一版，就不重複刪改 -->
-                    <!-- 直接使用你原本教師頁中的複句 HTML 區塊即可 -->
-                    <!-- 我保留了原內容，方便你 copy 整段 -->
                     <div class="compound-sentence-option">
                         <label>
                             <input type="checkbox" class="sentence-pattern-toggle" data-target="binglie-list"> 
@@ -343,11 +342,15 @@
                     </label>
                 </div>
 
-                <div style="text-align: center; margin-top: 20px;">
+                <!-- 按鈕置中 -->
+                <div style="text-align:center; margin-top:20px;">
                     <button type="submit" class="button-primary">
                         生成 01～32 號學生連結
                     </button>
                 </div>
+            </fieldset>
+        </form>
+    </div>
 
     <!-- 顯示 01～32 號學生連結的區塊（置中） -->
     <div id="student-links-section" class="container" style="margin-top: 20px; display: none;">
@@ -358,7 +361,7 @@
             說明：每四位學生共用同一組 API Key。請將下列連結分發給對應座號學生使用。
         </p>
 
-        <ol id="student-links-list" style="list-style-type:none; padding-left:0; margin:0 auto;"></ol>
+        <ol id="student-links-list"></ol>
 
         <!-- 只保留 Excel 匯出按鈕 -->
         <div id="export-buttons">
@@ -468,7 +471,7 @@
 
                 const url = `student_tool.html?${baseQuery}&sid=${seatId}#apikey=${encodeURIComponent(apiKeyForThisStudent)}`;
 
-                // HTML 顯示
+                // HTML 顯示（不再有前面的自動編號）
                 const li = document.createElement('li');
                 li.style.marginBottom = '6px';
                 li.innerHTML = `
@@ -497,31 +500,44 @@
             if (btn) btn.disabled = generatedStudentLinks.length === 0;
         });
 
+        // Excel(.xlsx) 匯出：使用 SheetJS 產生真正的 Excel 檔，連結可點擊
         document.getElementById('export-links-xlsx').addEventListener('click', () => {
             if (!generatedStudentLinks.length) return;
 
             const wb = XLSX.utils.book_new();
             const wsData = [['座號', 'API Key 組別', '連結']];
 
+            // GitHub Pages 的 base URL（student_tool.html 放在同一個 repo 根目錄）
+            const githubBase = "https://bifiyu.github.io/jcpswriting_Generation32Link_3kindsDownLoad/";
+
+            // 先把資料和超連結目標分開存
+            const linkTargets = [];
+
             generatedStudentLinks.forEach(item => {
-                // 把相對網址變成「完整網址」，例如：
-                // https://你的帳號.github.io/你的repo/student_tool.html?....
-                const absoluteUrl = new URL(item.url, window.location.href).href;
+                const absoluteUrl = new URL(item.url, githubBase).href;
 
                 wsData.push([
                     item.seatId,
                     `第${item.apiKeyChinese}組`,
-                    {
-                        t: 's',
-                        v: '開啟學生引導單',  // Excel 儲存格顯示的文字
-                        l: { Target: absoluteUrl } // 真正的超連結目標
-                    }
+                    '開啟學生引導單'   // 先寫純文字，等一下再補上 .l 超連結
                 ]);
+
+                linkTargets.push(absoluteUrl);
             });
 
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, '學生連結名單');
 
+            // 補上每一列的 hyperlink（從第 2 列開始）
+            for (let i = 0; i < linkTargets.length; i++) {
+                const row = i + 2; // 資料從列 2 開始
+                const cellAddress = 'C' + row;
+                if (!ws[cellAddress]) {
+                    ws[cellAddress] = { t: 's', v: '開啟學生引導單' };
+                }
+                ws[cellAddress].l = { Target: linkTargets[i] };
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, '學生連結名單');
             XLSX.writeFile(wb, 'student_links_01-32.xlsx');
         });
     });
